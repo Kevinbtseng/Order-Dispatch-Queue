@@ -1,12 +1,15 @@
 from fastapi import FastAPI, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app import schemas, crud, database
+from app.tasks import process_order
 
 app = FastAPI()
 
 @app.post("/orders/", response_model=schemas.OrderResponse)
 async def create_order(order: schemas.OrderCreate, db: Session = Depends(database.get_db)):
-    return crud.create_order(db, order)
+    db_order = crud.create_order(db, order)
+    process_order.delay(db_order.id)
+    return db_order
 
 @app.get("/orders/{oredr_id}", response_model=schemas.OrderResponse)
 async def get_order(order_id: int, db: Session = Depends(database.get_db)):
